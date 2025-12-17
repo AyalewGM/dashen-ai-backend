@@ -1,0 +1,25 @@
+fastapi
+uvicorn
+pydantic
+pytest
+httpx
+python-dotenv
+beautifulsoup4
+requests
+numpy
+
+# OpenAI
+openai
+
+# Google Gemini
+google-generativeai
+
+# LangChain & RAG
+langchain
+langchain-openai
+langchain-community
+langchain-text-splitters
+
+# Vector DB
+chromadb
+langchain-chroma
