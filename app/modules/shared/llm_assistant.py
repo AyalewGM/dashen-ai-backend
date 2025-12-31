@@ -1,14 +1,18 @@
 from typing import Any, Optional
 
 import asyncio
+import logging
 import os
+from pathlib import Path
 import time
 
+from dotenv import load_dotenv
 import google.generativeai as genai
 
 from .config import config
 from .sessions import Session
 
+logger = logging.getLogger(__name__)
 
 LANGUAGE_SYSTEM_PROMPTS: dict[str, str] = {
     "en": (
@@ -41,8 +45,10 @@ LANGUAGE_SYSTEM_PROMPTS: dict[str, str] = {
 }
 
 
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env", override=True)
+
 _GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-_GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
+_GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
 _GEMINI_TEMPERATURE = float(os.getenv("GEMINI_TEMPERATURE", "0.2"))
 
 
@@ -103,7 +109,8 @@ class LlmAssistant:
 
         # Fallback stub reply if Gemini is not configured
         if _gemini_model is None:
-            reply = f"{system_prompt} | User: {message}"
+            reply = "I’m not configured with an AI model right now. Please try again later."
+            llm_error = True
         else:
             try:
                 prompt = f"{system_prompt}\n\nUser: {message}"
@@ -116,9 +123,16 @@ class LlmAssistant:
                     generation_config={"temperature": _GEMINI_TEMPERATURE},
                 )
                 reply = getattr(response, "text", None) or ""
-            except Exception:  # noqa: BLE001
-                # On any failure, fall back to a simple, deterministic reply
-                reply = f"{system_prompt} | User: {message}"
+                llm_error = False
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "Gemini generate_content failed (model=%s, configured=%s): %s",
+                    _GEMINI_MODEL_NAME,
+                    bool(_GEMINI_API_KEY),
+                    exc,
+                )
+                reply = "I’m having trouble generating a response right now. Please try again."
+                llm_error = True
 
         elapsed_ms = int((time.monotonic() - start) * 1000)
         source_docs: Optional[list[str]] = None
@@ -131,6 +145,7 @@ class LlmAssistant:
             "model": _GEMINI_MODEL_NAME if _gemini_model is not None else config.default_model_name,
             "latency_ms": elapsed_ms,
             "source_docs": source_docs,
+            "llm_error": llm_error,
         }
 
     async def translate_to_english(self, text: str) -> str:

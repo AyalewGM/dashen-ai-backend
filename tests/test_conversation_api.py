@@ -7,8 +7,8 @@ client = TestClient(app)
 
 
 def test_chat_endpoint_returns_reply():
-    payload = {"sessionId": "s1", "message": "Hello", "language": "en"}
-    response = client.post("/api/chat/chat", json=payload)
+    payload = {"sessionId": "s1", "message": "Hello"}
+    response = client.post("/api/chat", json=payload, headers={"X-Language": "en"})
     assert response.status_code == 200
     data = response.json()
     assert data["reply"]
@@ -21,13 +21,20 @@ def test_chat_endpoint_returns_reply():
 
 
 def test_chat_empty_message_returns_400():
-    payload = {"sessionId": "s1", "message": "  ", "language": "en"}
-    response = client.post("/api/chat/chat", json=payload)
+    payload = {"sessionId": "s1", "message": "  "}
+    response = client.post("/api/chat", json=payload, headers={"X-Language": "en"})
     assert response.status_code == 400
 
 
-def test_chat_unsupported_language_returns_422():
-    payload = {"sessionId": "s1", "message": "Hello", "language": "fr"}
-    response = client.post("/api/chat/chat", json=payload)
-    # Pydantic validation error from FastAPI
-    assert response.status_code == 422
+def test_chat_invalid_language_header_returns_400():
+    payload = {"sessionId": "s1", "message": "Hello"}
+    response = client.post("/api/chat", json=payload, headers={"X-Language": "fr"})
+    assert response.status_code == 400
+
+
+def test_chat_defaults_to_en_when_no_language_provided():
+    payload = {"sessionId": "s1", "message": "Hello"}
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["language"] == "en"

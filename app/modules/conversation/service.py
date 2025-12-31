@@ -9,7 +9,7 @@ from .models import ChatMetadata, ChatRequest, ChatResponse
 
 
 class ConversationService:
-    async def handle_chat(self, request: ChatRequest) -> ChatResponse:
+    async def handle_chat(self, request: ChatRequest, *, language: str) -> ChatResponse:
         if not request.message or not request.message.strip():
             raise ValueError("Message must not be empty")
 
@@ -18,13 +18,13 @@ class ConversationService:
         log_request(
             module="conversation",
             session_id=session.id,
-            extra={"language": request.language, "message_preview": request.message[:50]},
+            extra={"language": language, "message_preview": request.message[:50]},
         )
 
         try:
             # 1. Cross-Lingual RAG: Translate to English to standardize the query
             query_en = request.message
-            if request.language != "en":
+            if language != "en":
                 query_en = await assistant.translate_to_english(request.message)
             
             base_reply_en = ""
@@ -58,13 +58,14 @@ class ConversationService:
                 )
                 base_reply_en = result["reply"]
                 
-                # Store in semantic cache
-                semantic_cache.cache_response(query_en, base_reply_en)
+                # Store in semantic cache (skip caching if the LLM failed)
+                if not result.get("llm_error"):
+                    semantic_cache.cache_response(query_en, base_reply_en)
 
             # 4. Final Translation to User's Language
             final_reply = base_reply_en
-            if request.language != "en":
-                final_reply = await assistant.translate_text(base_reply_en, request.language)
+            if language != "en":
+                final_reply = await assistant.translate_text(base_reply_en, language)
 
         except Exception as exc:  # noqa: BLE001
             log_error(module="conversation", session_id=session.id, error=exc)
@@ -78,7 +79,7 @@ class ConversationService:
 
         response = ChatResponse(
             reply=final_reply,
-            language=request.language,
+            language=language,
             metadata=metadata,
         )
 

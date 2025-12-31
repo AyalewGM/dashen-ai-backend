@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     session_id: str = Field(..., alias="sessionId")
     message: str
-    language: str = Field(..., pattern="^(am|om|ti|en)$")
+    language: Optional[str] = Field(default=None, pattern="^(am|om|ti|en)$")
 
 
 class ChatMetadata(BaseModel):

@@ -3,10 +3,14 @@ uvicorn
 pydantic
 pytest
 httpx
+python-multipart
 python-dotenv
 beautifulsoup4
 requests
 numpy
+
+# Postgres
+psycopg2-binary
 
 # OpenAI
 openai

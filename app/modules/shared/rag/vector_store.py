@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
+from dotenv import load_dotenv
 import google.generativeai as genai
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import RecursiveUrlLoader
@@ -14,6 +15,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .loader import RawDocument, load_dashen_public_pages
 
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[4] / ".env", override=True)
 
 DATA_DIR = Path(os.getenv("DASHEN_RAG_DATA_DIR", "data/rag"))
 

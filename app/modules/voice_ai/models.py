@@ -23,7 +23,7 @@ class NotificationSendRequest(BaseModel):
     template_id: str = Field(..., alias="templateId")
     channel: str
     preview_only: bool = Field(default=False, alias="previewOnly")
-    language: str
+    language: Optional[str] = None
 
     class Config:
         populate_by_name = True

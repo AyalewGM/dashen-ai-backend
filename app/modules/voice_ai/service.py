@@ -41,7 +41,7 @@ class VoiceAIService:
     def list_notification_templates(self) -> list[NotificationTemplate]:
         return list_templates()
 
-    def send_notification(self, request: NotificationSendRequest) -> NotificationSendResponse:
+    def send_notification(self, request: NotificationSendRequest, *, language: str) -> NotificationSendResponse:
         template = get_template_by_id(request.template_id)
         if not template:
             raise ValueError("Template not found")
@@ -53,6 +53,6 @@ class VoiceAIService:
             templateId=request.template_id,
             channel=request.channel,
             previewOnly=request.preview_only,
-            language=request.language,
+            language=language,
             status=status,
         )
