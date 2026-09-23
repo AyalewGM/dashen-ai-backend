@@ -10,6 +10,7 @@ async def chat_text(
     language: str,
     message: str,
     context: Optional[dict[str, Any]] = None,
+    bank_id: str = "dashen",
 ) -> dict[str, Any]:
     """Shared text-assistant entrypoint for all text-based interactions.
 
@@ -21,4 +22,5 @@ async def chat_text(
         language=language,
         message=message,
         context=context,
+        bank_id=bank_id,
     )

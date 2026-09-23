@@ -1,4 +1,62 @@
-# Dashen AI Platform Backend (Modular Monolith)
+# FraudShield AI Platform Backend (Modular Monolith)
+
+## 🎯 **White-Label Multi-Bank Demo Platform**
+
+This platform is a **production-ready white-label solution** that serves multiple Ethiopian banks from a **single codebase**. Each bank sees a fully customized experience with their own:
+
+- ✅ **Branding** (colors, logos, taglines)
+- ✅ **RAG Knowledge Base** (trained on their website)
+- ✅ **Fraud Detection Rules** (custom thresholds)
+- ✅ **KPIs and Analytics** (bank-specific data)
+- ✅ **Multilingual Support** (English, Amharic, Oromo, Tigrinya, Somali)
+
+### **Supported Banks (8 Total)**
+- 🔵 **Dashen Bank** (Blue theme)
+- 🔴 **Bank of Abyssinia** (Red theme)
+- 🟢 **Awash Bank** (Green theme)
+- 🟡 **Commercial Bank of Ethiopia** (Orange theme)
+- 🔷 **Amhara Bank** (Sky Blue theme)
+- 🟣 **Zemen Bank** (Purple theme)
+- 🩷 **Tsedey Bank** (Pink theme)
+- 🟢 **Nib International Bank** (Emerald theme)
+
+### **Quick Start**
+
+#### **🐳 Docker (Recommended for Demo)**
+```bash
+# 1. Setup environment
+cp env.example .env
+# Edit .env and add your GEMINI_API_KEY
+
+# 2. Start demo
+docker-compose up --build
+
+# 3. Test it
+curl http://localhost:8000/api/bank/list
+```
+
+#### **🐍 Python (Local Development)**
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start server
+uvicorn main:app --reload
+
+# Test it
+curl http://localhost:8000/api/bank/list
+```
+
+### **Documentation**
+- 🐳 [`DOCKER_DEMO_GUIDE.md`](DOCKER_DEMO_GUIDE.md) - Docker setup for demos
+- 🗄️ [`DATABASE_SETUP_GUIDE.md`](DATABASE_SETUP_GUIDE.md) - **Database setup with seed data**
+- 📊 [`ANALYTICS_QA_GUIDE.md`](ANALYTICS_QA_GUIDE.md) - **Natural language analytics Q&A**
+- 📘 [`WHITE_LABEL_DEMO_GUIDE.md`](WHITE_LABEL_DEMO_GUIDE.md) - Complete white-label demo guide
+- 🎨 [`BANK_THEMES.md`](BANK_THEMES.md) - All 8 bank trademark themes & colors
+- 🏗️ [`MULTI_BANK_ARCHITECTURE.md`](MULTI_BANK_ARCHITECTURE.md) - Architecture diagrams
+- 🚀 [`GOOZOM_SOLUTIONS_IMPLEMENTATION.md`](GOOZOM_SOLUTIONS_IMPLEMENTATION.md) - AI solutions implementation
+- 🤖 [`BANK_SPECIFIC_RAG.md`](BANK_SPECIFIC_RAG.md) - Bank-specific RAG details
+- 📋 [`DEMO_QUICK_START.md`](DEMO_QUICK_START.md) - Quick demo guide
 
 ## Structure
 

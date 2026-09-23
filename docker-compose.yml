@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  fraudshield-api:
+    build: .
+    container_name: fraudshield-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      # Gemini API (required)
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL_NAME=${GEMINI_MODEL_NAME:-gemini-2.0-flash-exp}
+      - GEMINI_EMBED_MODEL_NAME=${GEMINI_EMBED_MODEL_NAME:-embedding-001}
+
+      # Optional: OpenAI (if you want to use it)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+
+      # Database connection (external Postgres required)
+      - DATABASE_URL=${DATABASE_URL}
+
+      # App settings
+      - UPLOADS_DIR=${UPLOADS_DIR:-/app/data/uploads}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/bank/list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -7,15 +7,63 @@ from bs4 import BeautifulSoup
 from langchain_community.document_loaders import RecursiveUrlLoader
 
 
-DASHEN_SEED_URLS: list[str] = [
-    "https://www.dashenbanksc.com/how-to-transfer-money-using-dashen-mobile-plus/",
-    "https://www.dashenbanksc.com/how-to-use-an-atm/",
-    "https://www.dashenbanksc.com/privacy-and-security/",
-    "https://www.dashenbanksc.com/frequently-asked-questions/",
-    "https://www.dashenbanksc.com/how-to-transfer-money-from-abroad/",
-    "https://www.dashenbanksc.com/about-us/",
-    "https://www.dashenbanksc.com/",
-]
+# Bank-specific seed URLs for RAG
+BANK_SEED_URLS: dict[str, list[str]] = {
+    "dashen": [
+        "https://www.dashenbanksc.com/how-to-transfer-money-using-dashen-mobile-plus/",
+        "https://www.dashenbanksc.com/how-to-use-an-atm/",
+        "https://www.dashenbanksc.com/privacy-and-security/",
+        "https://www.dashenbanksc.com/frequently-asked-questions/",
+        "https://www.dashenbanksc.com/how-to-transfer-money-from-abroad/",
+        "https://www.dashenbanksc.com/about-us/",
+        "https://www.dashenbanksc.com/",
+    ],
+    "abyssinia": [
+        "https://bankofabyssinia.com/",
+        "https://bankofabyssinia.com/about-us/",
+        "https://bankofabyssinia.com/services/",
+        "https://bankofabyssinia.com/digital-banking/",
+    ],
+    "awash": [
+        "https://awashbank.com/",
+        "https://awashbank.com/about/",
+        "https://awashbank.com/services/",
+        "https://awashbank.com/digital-services/",
+    ],
+    "cbe": [
+        "https://combanketh.et/",
+        "https://combanketh.et/about-us/",
+        "https://combanketh.et/services/",
+        "https://combanketh.et/digital-banking/",
+    ],
+    "amhara": [
+        "https://amharabank.com.et/",
+        "https://amharabank.com.et/about/",
+        "https://amharabank.com.et/services/",
+        "https://amharabank.com.et/products/",
+    ],
+    "zemen": [
+        "https://zemenbank.com/",
+        "https://zemenbank.com/about-us/",
+        "https://zemenbank.com/personal-banking/",
+        "https://zemenbank.com/digital-banking/",
+    ],
+    "tsedey": [
+        "https://tsedeybank.com.et/",
+        "https://tsedeybank.com.et/about/",
+        "https://tsedeybank.com.et/services/",
+        "https://tsedeybank.com.et/products/",
+    ],
+    "nib": [
+        "https://nibbanksc.com/",
+        "https://nibbanksc.com/about-us/",
+        "https://nibbanksc.com/personal-banking/",
+        "https://nibbanksc.com/international-banking/",
+    ],
+}
+
+# Backward compatibility
+DASHEN_SEED_URLS: list[str] = BANK_SEED_URLS["dashen"]
 
 MAX_PAGES = 200
 MAX_DEPTH = 3
@@ -67,10 +115,17 @@ def _html_to_text(html: str) -> str:
     return "\n".join(lines)
 
 
-def load_dashen_public_pages(urls: Iterable[str] | None = None) -> List[RawDocument]:
-    """Crawl a bounded portion of Dashen's public site using LangChain RecursiveUrlLoader."""
-
-    seed_urls = list(urls) if urls is not None else DASHEN_SEED_URLS
+def load_bank_public_pages(bank_id: str = "dashen", urls: Iterable[str] | None = None) -> List[RawDocument]:
+    """Crawl a bounded portion of a bank's public site using LangChain RecursiveUrlLoader.
+    
+    Args:
+        bank_id: Bank identifier (dashen, abyssinia, awash, cbe)
+        urls: Optional custom URLs to crawl. If None, uses bank-specific defaults.
+    """
+    if urls is not None:
+        seed_urls = list(urls)
+    else:
+        seed_urls = BANK_SEED_URLS.get(bank_id, BANK_SEED_URLS["dashen"])
     docs: list[RawDocument] = []
     
     # Track visited URLs to avoid duplicates across seeds
@@ -115,3 +170,8 @@ def load_dashen_public_pages(urls: Iterable[str] | None = None) -> List[RawDocum
             break
 
     return docs
+
+
+def load_dashen_public_pages(urls: Iterable[str] | None = None) -> List[RawDocument]:
+    """Backward compatibility wrapper for loading Dashen Bank pages."""
+    return load_bank_public_pages(bank_id="dashen", urls=urls)

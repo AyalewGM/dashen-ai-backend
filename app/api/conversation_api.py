@@ -14,7 +14,9 @@ async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     logger.info(request)
     try:
         language = await resolve_language(http_request)
-        return await service.handle_chat(request, language=language)
+        # Extract bank_id from X-Bank-Id header for demo purposes (defaults to dashen)
+        bank_id = http_request.headers.get("x-bank-id", "dashen").lower()
+        return await service.handle_chat(request, language=language, bank_id=bank_id)
     except ValueError as exc:
         log_error(module="conversation", session_id=request.session_id, error=exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc

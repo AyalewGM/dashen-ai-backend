@@ -6,7 +6,7 @@ from pathlib import Path
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-from .vector_store import GeminiEmbeddings
+from .vector_store import _get_embeddings
 
 DATA_DIR = Path(os.getenv("DASHEN_RAG_DATA_DIR", "data/rag"))
 CACHE_DIR = DATA_DIR / "chroma_cache"
@@ -15,7 +15,13 @@ CACHE_DIR = DATA_DIR / "chroma_cache"
 class SemanticCache:
     def __init__(self, threshold: float = 0.85):
         self.threshold = threshold
-        self.embeddings = GeminiEmbeddings()
+        self._enabled = bool(os.getenv("OPENAI_API_KEY"))
+        
+        if not self._enabled:
+            print("INFO: Semantic cache disabled - OPENAI_API_KEY not set")
+            return
+        
+        self.embeddings = _get_embeddings()
         
         # Initialize separate Chroma collection for caching
         self.vector_db = Chroma(
@@ -26,6 +32,9 @@ class SemanticCache:
 
     def get_cached_response(self, query: str) -> str | None:
         """Looks for a semantically similar query in the cache."""
+        if not self._enabled:
+            return None
+        
         try:
             # Check if cache is empty first to avoid errors
             # (Chroma might throw if collection is empty or doesn't exist yet)
@@ -62,6 +71,9 @@ class SemanticCache:
 
     def cache_response(self, query: str, response: str) -> None:
         """Stores a query-response pair in the semantic cache."""
+        if not self._enabled:
+            return
+        
         doc = Document(
             page_content=query,
             metadata={"response": response}

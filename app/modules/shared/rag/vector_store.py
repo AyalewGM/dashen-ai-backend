@@ -6,14 +6,13 @@ from pathlib import Path
 from typing import List
 
 from dotenv import load_dotenv
-import google.generativeai as genai
 from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import RecursiveUrlLoader
 from langchain_core.documents import Document
-from langchain_core.embeddings import Embeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from .loader import RawDocument, load_dashen_public_pages
+from .loader import RawDocument, load_bank_public_pages, load_dashen_public_pages
 
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[4] / ".env", override=True)
@@ -21,47 +20,20 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parents[4] / ".env", override=T
 DATA_DIR = Path(os.getenv("DASHEN_RAG_DATA_DIR", "data/rag"))
 
 
-_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-_GEMINI_EMBED_MODEL_NAME = os.getenv("GEMINI_EMBED_MODEL_NAME", "text-embedding-004")
-
-if _GEMINI_API_KEY:
-    genai.configure(api_key=_GEMINI_API_KEY)
-else:
-    pass
+_OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+_OPENAI_EMBED_MODEL_NAME = os.getenv("OPENAI_EMBED_MODEL_NAME", "text-embedding-3-small")
 
 
-class GeminiEmbeddings(Embeddings):
-    """Minimal embeddings helper compatible with the existing interface.
-
-    Provides embed_documents and embed_query methods similar to LangChain
-    embeddings classes so the rest of the vector store code can stay the same.
-    """
-
-    def __init__(self) -> None:
-        if not _GEMINI_API_KEY:
-            raise RuntimeError(
-                "Gemini embeddings are not configured. Set GEMINI_API_KEY and GEMINI_EMBED_MODEL_NAME."
-            )
-
-    def _embed(self, text: str, task_type: str = "retrieval_document") -> list[float]:
-        # Call the module-level function directly
-        # Note: 'models/' prefix is often safer
-        model_name = _GEMINI_EMBED_MODEL_NAME
-        if not model_name.startswith("models/"):
-            model_name = f"models/{model_name}"
-
-        response = genai.embed_content(
-            model=model_name,
-            content=text,
-            task_type=task_type,
+def _get_embeddings() -> OpenAIEmbeddings:
+    """Create and return OpenAI embeddings client."""
+    if not _OPENAI_API_KEY:
+        raise RuntimeError(
+            "OpenAI embeddings are not configured. Set OPENAI_API_KEY environment variable."
         )
-        return list(response["embedding"])
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._embed(t, task_type="retrieval_document") for t in texts]
-
-    def embed_query(self, text: str) -> list[float]:
-        return self._embed(text, task_type="retrieval_query")
+    return OpenAIEmbeddings(
+        model=_OPENAI_EMBED_MODEL_NAME,
+        api_key=_OPENAI_API_KEY,
+    )
 
 
 @dataclass
@@ -70,14 +42,17 @@ class RetrievalResult:
     source_url: str
 
 
-class _DashenVectorStore:
-    def __init__(self) -> None:
-        self._embeddings = GeminiEmbeddings()
+class _BankVectorStore:
+    """Bank-aware vector store that supports multiple banks in a single collection."""
+    
+    def __init__(self, bank_id: str = "dashen") -> None:
+        self._embeddings = _get_embeddings()
+        self._bank_id = bank_id
         self.persist_directory = str(DATA_DIR / "chroma_db")
         
-        # Initialize ChromaDB
+        # Use a single collection with bank_id metadata for filtering
         self._vector_db = Chroma(
-            collection_name="dashen_knowledge",
+            collection_name="multi_bank_knowledge",
             embedding_function=self._embeddings,
             persist_directory=self.persist_directory,
         )
@@ -85,21 +60,31 @@ class _DashenVectorStore:
         self._ensure_index()
 
     def _ensure_index(self) -> None:
-        # Check if collection is empty using getting count
-        # Note: In newer Chroma versions we might need a different way, but this usually works
+        """Ensure the bank's documents are indexed."""
         try:
-            # If the collection is empty, build it
-            if self._vector_db._collection.count() == 0:
+            # Check if this bank has any documents
+            results = self._vector_db.get(
+                where={"bank_id": self._bank_id},
+                limit=1
+            )
+            if not results or not results.get("ids"):
                 self._build_index()
         except Exception:
-            # If any error checking count, try building just in case
+            # If any error, try building
             self._build_index()
 
     def _build_index(self) -> None:
+        """Build index for this specific bank."""
         # Ensure parent directory exists
         DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-        raw_docs: list[RawDocument] = load_dashen_public_pages()
+        print(f"DEBUG: Loading documents for bank '{self._bank_id}'...")
+        raw_docs: list[RawDocument] = load_bank_public_pages(bank_id=self._bank_id)
+        
+        if not raw_docs:
+            print(f"WARNING: No documents loaded for bank '{self._bank_id}'. Using fallback.")
+            return
+        
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
@@ -111,16 +96,28 @@ class _DashenVectorStore:
             chunks = splitter.split_text(doc.text)
             for chunk in chunks:
                 if chunk.strip():
-                    lc_docs.append(Document(page_content=chunk, metadata={"source": doc.url}))
+                    # Add bank_id to metadata for filtering
+                    lc_docs.append(Document(
+                        page_content=chunk, 
+                        metadata={
+                            "source": doc.url,
+                            "bank_id": self._bank_id
+                        }
+                    ))
 
         if lc_docs:
-            print(f"DEBUG: Indexing {len(lc_docs)} chunks into ChromaDB...")
+            print(f"DEBUG: Indexing {len(lc_docs)} chunks for bank '{self._bank_id}' into ChromaDB...")
             self._vector_db.add_documents(lc_docs)
-            print("DEBUG: Indexing complete.")
+            print(f"DEBUG: Indexing complete for bank '{self._bank_id}'.")
 
     def retrieve(self, query: str, top_k: int = 5) -> List[RetrievalResult]:
-        # Similarity search
-        results = self._vector_db.similarity_search(query, k=top_k)
+        """Retrieve documents filtered by bank_id."""
+        # Similarity search with bank_id filter
+        results = self._vector_db.similarity_search(
+            query, 
+            k=top_k,
+            filter={"bank_id": self._bank_id}
+        )
         
         return [
             RetrievalResult(
@@ -131,11 +128,37 @@ class _DashenVectorStore:
         ]
 
 
-_store: _DashenVectorStore | None = None
+# No-op retriever used when no embedding API key is configured
+class _NoOpRetriever:
+    """A no-op retriever that returns empty results."""
+    
+    def __init__(self, bank_id: str = "dashen") -> None:
+        self._bank_id = bank_id
+    
+    def retrieve(self, query: str, top_k: int = 5) -> List[RetrievalResult]:
+        print(f"INFO: RAG disabled for bank '{self._bank_id}' - no embedding API key configured")
+        return []
 
 
-def get_retriever() -> _DashenVectorStore:
-    global _store
-    if _store is None:
-        _store = _DashenVectorStore()
-    return _store
+# Cache stores per bank to avoid re-indexing
+_stores: dict[str, _BankVectorStore] = {}
+
+
+def get_retriever(bank_id: str = "dashen") -> _BankVectorStore | _NoOpRetriever:
+    """Get or create a bank-specific vector store retriever.
+    
+    Falls back to a no-op retriever if no embedding API key is configured.
+    
+    Args:
+        bank_id: Bank identifier (dashen, abyssinia, awash, cbe)
+    
+    Returns:
+        Bank-specific retriever instance or no-op retriever
+    """
+    if not _OPENAI_API_KEY:
+        return _NoOpRetriever(bank_id=bank_id)
+    
+    global _stores
+    if bank_id not in _stores:
+        _stores[bank_id] = _BankVectorStore(bank_id=bank_id)
+    return _stores[bank_id]

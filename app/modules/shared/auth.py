@@ -11,6 +11,7 @@ from fastapi import HTTPException, Request, status
 @dataclass(frozen=True)
 class AuthContext:
     token_type: str
+    bank_id: str = "dashen"
     user_id: Optional[str] = None
     customer_id: Optional[str] = None
     roles: Optional[list[str]] = None
@@ -62,6 +63,10 @@ def get_auth_context(request: Request) -> AuthContext:
     if token_type not in {"internal", "customer"}:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid tokenType")
 
+    bank_id = payload.get("bankId", "dashen")
+    if not isinstance(bank_id, str) or not bank_id:
+        bank_id = "dashen"
+
     if token_type == "internal":
         user_id = payload.get("userId")
         roles = payload.get("roles")
@@ -74,10 +79,10 @@ def get_auth_context(request: Request) -> AuthContext:
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid roles")
 
-        return AuthContext(token_type="internal", user_id=user_id, roles=roles_list)
+        return AuthContext(token_type="internal", bank_id=bank_id, user_id=user_id, roles=roles_list)
 
     customer_id = payload.get("customerId")
     if not isinstance(customer_id, str) or not customer_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid customer token")
 
-    return AuthContext(token_type="customer", customer_id=customer_id)
+    return AuthContext(token_type="customer", bank_id=bank_id, customer_id=customer_id)

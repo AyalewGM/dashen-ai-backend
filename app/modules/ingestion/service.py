@@ -67,9 +67,9 @@ class IngestionService:
             raise RuntimeError("DATABASE_URL is not configured")
 
         customers = [
-            {"customer_id": "cust-demo-001", "name": "Abel T."},
-            {"customer_id": "cust-demo-002", "name": "Hanna M."},
-            {"customer_id": "cust-demo-003", "name": "Sami K."},
+            {"customer_id": "cust-demo-001", "name": "Abebe Kebede"},
+            {"customer_id": "cust-demo-002", "name": "Aster Aweke"},
+            {"customer_id": "cust-demo-003", "name": "Dawit Kebede"},
         ]
 
         accounts = [

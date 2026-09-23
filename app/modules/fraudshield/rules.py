@@ -30,21 +30,24 @@ def score_event(
     event: TransactionEventModel,
     *,
     recent_events: Optional[list[TransactionEventModel]] = None,
+    amount_high_threshold: float = 100_000,
+    amount_medium_threshold: float = 50_000,
+    channel_amount_threshold: float = 25_000,
 ) -> RuleResult:
     reasons: list[str] = []
     score = 0
 
     # 1) unusually_large_amount
-    # Demo-friendly fixed thresholds (ETB).
-    if event.amount >= 100_000:
+    # Use bank-specific thresholds when provided.
+    if event.amount >= amount_high_threshold:
         score += 45
         reasons.append("unusually_large_amount")
-    elif event.amount >= 50_000:
+    elif event.amount >= amount_medium_threshold:
         score += 30
         reasons.append("unusually_large_amount")
 
     # 2) suspicious_channel_mix (risky channels for high value)
-    if event.channel.lower() in {"atm", "web"} and event.amount >= 25_000:
+    if event.channel.lower() in {"atm", "web"} and event.amount >= channel_amount_threshold:
         score += 15
         reasons.append("suspicious_channel_mix")
 
